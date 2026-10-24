@@ -118,6 +118,10 @@ $ python src/verify.py
 - 本仓库不包含、也不再分发官方二进制；使用者需自行从官方渠道获取原版
 - 汉化仅改动界面文本，不改变任何功能行为；因使用本汉化产生的任何问题由使用者自负
 
+## 版本
+
+见 [CHANGELOG.md](CHANGELOG.md)。当前 **v2.0.0**（对应上游 6.1.0.0，278 条）。
+
 ## 致谢
 
 - [kimmknight/remoteapptool](https://github.com/kimmknight/remoteapptool) —— 原程序
