@@ -8,6 +8,16 @@
 import json, sys
 from us_heap import PE
 
+# VB.NET 后期绑定（LateCall / LateSet）的成员名以字符串字面量出现在 IL 里。
+# 这些词一旦被翻译，运行时就会抛 MissingMemberException：
+#   未找到类型“ImageCollection”的公共成员“添加”。
+# 实测踩坑：Add（ImageList.Images.Add）。同类集合成员一律禁止入表。
+HARD_DENY = {
+    'Add', 'Remove', 'RemoveAt', 'Item', 'Count', 'Clear', 'Insert',
+    'IndexOf', 'Contains', 'Sort', 'Clone', 'ToString', 'Equals',
+    'GetType', 'Dispose', 'ToString',
+}
+
 
 def _canon(s):
     return s.replace('\\r\\n', '\x00').replace('\\n', '\x00') \
@@ -15,9 +25,14 @@ def _canon(s):
 
 
 def build_maps(mapping):
-    exact = dict(mapping)
-    loose = {}
+    exact = {}
     for k, v in mapping.items():
+        if k in HARD_DENY:
+            print('[警告] 拒绝翻译后期绑定成员名 %r（会导致 MissingMemberException）' % k)
+            continue
+        exact[k] = v
+    loose = {}
+    for k, v in exact.items():
         loose[_canon(k.replace('\r\n', '\x00').replace('\n', '\x00'))] = \
             _canon(v).replace('\x00', '\\n')
     return exact, loose

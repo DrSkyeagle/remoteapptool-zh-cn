@@ -56,6 +56,34 @@ python build.py --src RemoteApp.Tool.6100.zip --out ./dist
 - 版权文本里的作者名、URL、许可证名称
 - 组合框里的 `Optional` / `Enforced`（对应注册表 dword 取值语义）
 
+## 踩坑记录（改语言包前必读）
+
+**1. 后期绑定成员名绝不能翻译。**
+VB.NET 在 `Option Strict Off` 下会走 `Microsoft.VisualBasic.CompilerServices.NewLateBinding.LateCall`，
+被调用的成员名是以字符串字面量存在 IL 里的，同样位于 `#US` 堆。
+
+实测事故：把 `Add` 译成 `添加` 后，`ImageList.Images.Add(...)` 变成查找名为“添加”的成员：
+
+```
+未找到类型“ImageCollection”的公共成员“添加”。
+```
+
+启动时表现为更迷惑的 `索引超出了数组界限`——因为图标没被加进 ImageList，
+后续按索引取图就炸了。
+
+因此 `src/patch_zh.py` 里有一份 `HARD_DENY` 黑名单（`Add` / `Remove` / `Item` / `Count` /
+`Clear` / `Insert` / `IndexOf` / `Contains` / `Sort` / `Clone` / `ToString` / `Equals` /
+`GetType` / `Dispose`），命中即拒绝翻译并打印警告。新增语言包时不要放宽这份名单。
+
+**2. 换行风格有两种，不能统一。**
+WinForms 控件文本用真 `CRLF`，而“附加 RDP 选项”的说明文字用字面量 `\n`（反斜杠 + n）。
+若把字面量 `\r\n` 归一成真换行，会破坏 tooltip 字符串（`窗体|控件|文本\r\n`）的行解析。
+`patch_zh.py` 的策略是：精确匹配优先，仅当原文不含真换行时才走归一化匹配，并按原风格回写。
+
+**3. 长度前缀宽度要按新字符串长度选。**
+中文超过 127 字节仍用 1 字节前缀，高位会被当成 2 字节前缀标志，`#US` 堆直接损坏，
+程序静默退出、返回码 0，没有任何报错。
+
 ## 校验
 
 `src/verify.py` 会从成包里逐条回读 `#US` 条目并与映射表比对：
